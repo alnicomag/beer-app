@@ -1,0 +1,24 @@
+# macOS metadata
+.DS_Store
+
+# Python and virtual environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.pyright/
+.venv/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Local datasets: keep only their documentation and placeholders.
+dataset/*
+!dataset/README.md
+!dataset/.gitkeep
+
+# Generated experiment outputs: keep only the placeholder.
+runs/*
+!runs/.gitkeep
