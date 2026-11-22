@@ -1,0 +1,42 @@
+# ソフトウェアファクトリー向けの設定。
+# ファクトリーはこのファイルを読んで、検査コマンドと変更してよい範囲を決める。
+version: 1
+
+# 対応水準: A = 自動検証で合否が決まる / B = 一部は人間の確認が要る / C = 実装は人間
+level: A
+
+# いずれも非対話で動き、終了コードで合否が分かること。
+commands:
+  setup: uv sync --locked
+  test: uv run pytest
+  lint: uv run ruff check . && uv run pyright
+
+verify:
+  # ワーカーの環境では確かめられない範囲。該当する変更のPRには「未検証」と明記する。
+  unverified:
+    - 再構成画像の鑑賞品質(目視評価)
+    - 実缶の動画を使う実験(dataset/ はGit管理外)
+
+paths:
+  # 変更に人間の承認が要る。
+  protected:
+    - .github/**
+    - .claude/**
+    - CLAUDE.md
+    - factory.yml
+    - handoff_prototype0.md
+    - pyproject.toml
+    - uv.lock
+  # ワーカーは変更しない。
+  forbidden:
+    - dataset/**
+    - runs/**
+
+limits:
+  max_parallel: 1
+  max_attempts: 3
+
+issues:
+  # ここにない起票者のイシューは自動で着手しない。
+  allowed_authors:
+    - alnicomag
