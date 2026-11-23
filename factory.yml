@@ -22,6 +22,7 @@ paths:
   protected:
     - .github/**
     - .claude/**
+    - .factory/**
     - CLAUDE.md
     - factory.yml
     - handoff_prototype0.md
