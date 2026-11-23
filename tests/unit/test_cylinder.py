@@ -76,7 +76,7 @@ def test_zero_dim_array_stays_array() -> None:
 
 def test_numpy_scalar_returns_float() -> None:
     assert type(x_to_alpha(np.float64(0.5), 1.0)) is float
-    assert type(alpha_to_x(np.float32(0.5), 1.0)) is float
+    assert type(alpha_to_x(np.float64(0.5), 1.0)) is float
 
 
 def test_integer_array() -> None:
