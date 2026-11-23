@@ -65,6 +65,20 @@ def test_one_element_array_stays_array() -> None:
     assert isinstance(x_to_alpha(np.array([0.5]), 1.0), np.ndarray)
 
 
+def test_zero_dim_array_stays_array() -> None:
+    x = np.array(0.5)
+    for out in (x_to_alpha(x, 1.0), alpha_to_x(x, 1.0)):
+        assert isinstance(out, np.ndarray)
+        assert out.shape == ()
+        assert out.dtype == np.float64
+    assert x_to_alpha(x, 1.0) == pytest.approx(math.pi / 6)
+
+
+def test_numpy_scalar_returns_float() -> None:
+    assert type(x_to_alpha(np.float64(0.5), 1.0)) is float
+    assert type(alpha_to_x(np.float32(0.5), 1.0)) is float
+
+
 def test_integer_array() -> None:
     out = x_to_alpha(np.array([-2, 0, 2]), 2)
     np.testing.assert_allclose(out, [-math.pi / 2, 0.0, math.pi / 2])

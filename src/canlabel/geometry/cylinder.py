@@ -23,12 +23,14 @@ def _to_float64(values: float | np.ndarray, name: str) -> np.ndarray:
     return arr
 
 
-def _finish(out: np.ndarray, like: np.ndarray) -> float | np.ndarray:
-    assert out.shape == like.shape
+def _finish(result: np.ndarray, values: float | np.ndarray) -> float | np.ndarray:
+    # NumPy ufuncs turn 0-d arrays into NumPy scalars, so restore the array first.
+    out = np.asarray(result, dtype=np.float64)
+    assert out.shape == np.shape(values)
     assert out.dtype == np.float64
-    if out.ndim == 0:
-        return float(out)
-    return out
+    if isinstance(values, np.ndarray):
+        return out
+    return float(out)
 
 
 def x_to_alpha(x: float | np.ndarray, radius: float) -> float | np.ndarray:
@@ -36,13 +38,14 @@ def x_to_alpha(x: float | np.ndarray, radius: float) -> float | np.ndarray:
 
     Args:
         x: Horizontal distance from the apparent cylinder center, in pixels.
-            A Python/NumPy scalar or an ndarray of any shape (any real dtype;
-            converted to float64). Must satisfy ``|x| <= radius``.
+            A Python/NumPy scalar or an ndarray of any shape, including 0-d
+            (any real dtype; converted to float64). Must satisfy ``|x| <= radius``.
         radius: Apparent radius ``R`` in pixels. Finite scalar ``> 0``.
 
     Returns:
         Angle in radians, within ``[-pi/2, pi/2]``. A Python ``float`` for scalar
-        input; for ndarray input, a float64 ndarray with the same shape as ``x``.
+        input; for ndarray input, a float64 ndarray with the same shape as ``x``
+        (a 0-d ndarray stays a 0-d ndarray).
 
     Raises:
         ValueError: If ``radius`` is not finite or ``<= 0``, if ``x`` contains NaN/inf,
@@ -52,26 +55,26 @@ def x_to_alpha(x: float | np.ndarray, radius: float) -> float | np.ndarray:
     arr = _to_float64(x, "x")
     if arr.size and np.max(np.abs(arr)) > r:
         raise ValueError(f"|x| must be <= radius: max |x| = {np.max(np.abs(arr))}, radius = {r}")
-    return _finish(np.arcsin(arr / r), arr)
+    return _finish(np.arcsin(arr / r), x)
 
 
 def alpha_to_x(alpha: float | np.ndarray, radius: float) -> float | np.ndarray:
     """Convert cylinder surface angle to horizontal position: ``x = R * sin(alpha)``.
 
     Args:
-        alpha: Surface angle in radians. Scalar or ndarray of any shape (any real
-            dtype; converted to float64). Round-tripping with :func:`x_to_alpha`
+        alpha: Surface angle in radians. Scalar or ndarray of any shape, including
+            0-d (any real dtype; converted to float64). Round-tripping with :func:`x_to_alpha`
             is guaranteed only for ``|alpha| <= pi/2``.
         radius: Apparent radius ``R`` in pixels. Finite scalar ``> 0``.
 
     Returns:
         Horizontal distance from the apparent center in pixels, within ``[-R, R]``.
         A Python ``float`` for scalar input; for ndarray input, a float64 ndarray
-        with the same shape as ``alpha``.
+        with the same shape as ``alpha`` (a 0-d ndarray stays a 0-d ndarray).
 
     Raises:
         ValueError: If ``radius`` is not finite or ``<= 0``, or ``alpha`` contains NaN/inf.
     """
     r = _check_radius(radius)
     arr = _to_float64(alpha, "alpha")
-    return _finish(r * np.sin(arr), arr)
+    return _finish(r * np.sin(arr), alpha)
