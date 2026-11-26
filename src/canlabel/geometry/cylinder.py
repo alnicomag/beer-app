@@ -16,6 +16,21 @@ def _check_radius(radius: float) -> float:
     return r
 
 
+def _effective_radius(x: float | np.ndarray, r: float) -> float:
+    """Round ``r`` to the precision of ``x`` when ``x`` is a float dtype narrower than float64.
+
+    Other inputs (float64, longdouble, integers, Python scalars) leave ``r`` unchanged.
+    """
+    dtype = np.asarray(x).dtype
+    if not np.issubdtype(dtype, np.floating) or np.finfo(dtype).bits >= 64:
+        return r
+    with np.errstate(over="ignore", under="ignore"):
+        r_eff = float(dtype.type(r))
+    if not np.isfinite(r_eff) or r_eff <= 0.0:
+        raise ValueError(f"radius {r!r} is not representable as a positive finite {dtype}")
+    return r_eff
+
+
 def _to_float64(values: float | np.ndarray, name: str) -> np.ndarray:
     arr = np.asarray(values, dtype=np.float64)
     if not np.all(np.isfinite(arr)):
@@ -39,19 +54,33 @@ def x_to_alpha(x: float | np.ndarray, radius: float) -> float | np.ndarray:
     Args:
         x: Horizontal distance from the apparent cylinder center, in pixels.
             A Python/NumPy scalar or an ndarray of any shape, including 0-d
-            (any real dtype; converted to float64). Must satisfy ``|x| <= radius``.
+            (any real dtype; computed in float64). Must satisfy ``|x| <= radius``.
         radius: Apparent radius ``R`` in pixels. Finite scalar ``> 0``.
 
+    Boundary handling:
+        The range check is done at the precision of ``x``'s dtype. For a float
+        dtype narrower than float64 (e.g. float32), ``radius`` is first rounded to
+        that dtype, ``R_eff = dtype(radius)``, and both the check ``|x| <= R_eff``
+        and the division ``x / R_eff`` use ``R_eff``. So ``x = dtype(R)`` is
+        accepted and gives exactly ``pi/2`` (``-R`` gives ``-pi/2``), even when
+        ``R`` (e.g. 0.1) is not exactly representable in that dtype. The only
+        tolerance is the rounding error of ``radius`` in that dtype (about 6e-8
+        relative for float32); results differ from using ``R`` directly by about
+        that much. This is not clipping: any value above ``R_eff`` still raises.
+        float64, longdouble, integer and Python scalar inputs use ``radius`` as is
+        (``1.0 + 1e-9`` is out of range for radius ``1.0``).
+
     Returns:
-        Angle in radians, within ``[-pi/2, pi/2]``. A Python ``float`` for scalar
+        Angle in radians, within ``[-pi/2, pi/2]``, always float64. A Python ``float`` for scalar
         input; for ndarray input, a float64 ndarray with the same shape as ``x``
         (a 0-d ndarray stays a 0-d ndarray).
 
     Raises:
         ValueError: If ``radius`` is not finite or ``<= 0``, if ``x`` contains NaN/inf,
-            or if any ``|x| > radius``. Values are never clipped.
+            if any ``|x| > R_eff`` (see above), or if ``radius`` rounded to a narrower
+            float dtype of ``x`` becomes 0 or inf. Values are never clipped.
     """
-    r = _check_radius(radius)
+    r = _effective_radius(x, _check_radius(radius))
     arr = _to_float64(x, "x")
     if arr.size and np.max(np.abs(arr)) > r:
         raise ValueError(f"|x| must be <= radius: max |x| = {np.max(np.abs(arr))}, radius = {r}")
