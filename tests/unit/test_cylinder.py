@@ -1,6 +1,7 @@
 """Unit tests for the ideal cylinder projection."""
 
 import math
+from typing import cast
 
 import numpy as np
 import pytest
@@ -117,3 +118,62 @@ def test_non_finite_input_raises(v: float) -> None:
         x_to_alpha(v, 1.0)
     with pytest.raises(ValueError):
         alpha_to_x(np.array([0.0, v]), 1.0)
+
+
+@pytest.mark.parametrize("r", [0.1, 0.3, 1e-3, 1.0, 123.456])
+def test_x_to_alpha_float32_boundary(r: float) -> None:
+    x = np.array([r, -r], dtype=np.float32)
+    out = x_to_alpha(x, r)
+    assert isinstance(out, np.ndarray)
+    assert out.dtype == np.float64
+    assert not np.any(np.isnan(out))
+    np.testing.assert_allclose(out, [math.pi / 2, -math.pi / 2], atol=1e-6)
+
+
+@pytest.mark.parametrize("r", [0.1, 0.3, 1.0, 12.3])
+def test_x_to_alpha_float16_boundary(r: float) -> None:
+    x = np.array([r, -r], dtype=np.float16)
+    out = x_to_alpha(x, r)
+    assert isinstance(out, np.ndarray)
+    assert out.dtype == np.float64
+    np.testing.assert_allclose(out, [math.pi / 2, -math.pi / 2], atol=1e-6)
+
+
+def test_x_to_alpha_float32_scalar_boundary() -> None:
+    out = x_to_alpha(cast(float, np.float32(0.1)), 0.1)
+    assert isinstance(out, float)
+    assert out == pytest.approx(math.pi / 2, abs=1e-6)
+
+
+@pytest.mark.parametrize("sign", [1.0, -1.0])
+def test_x_to_alpha_float32_beyond_rounding_raises(sign: float) -> None:
+    r = 0.1
+    over = np.nextafter(np.float32(r), np.float32(np.inf))
+    with pytest.raises(ValueError):
+        x_to_alpha(np.array([sign * over], dtype=np.float32), r)
+    with pytest.raises(ValueError):
+        x_to_alpha(np.array([sign * 0.1001], dtype=np.float32), r)
+    with pytest.raises(ValueError):
+        x_to_alpha(np.array([sign * r * (1 + 1e-6)], dtype=np.float64), r)
+
+
+def test_x_to_alpha_float64_unchanged() -> None:
+    with pytest.raises(ValueError):
+        x_to_alpha(1.0 + 1e-9, 1.0)
+    with pytest.raises(ValueError):
+        x_to_alpha(0.1000000001, 0.1)
+    assert x_to_alpha(np.float64(0.1), 0.1) == pytest.approx(math.pi / 2)
+
+
+def test_x_to_alpha_float32_interior_matches_float64() -> None:
+    x32 = np.linspace(-0.09, 0.09, 11, dtype=np.float32)
+    got = x_to_alpha(x32, 0.1)
+    expected = x_to_alpha(x32.astype(np.float64), 0.1)
+    np.testing.assert_allclose(got, expected, rtol=1e-6)
+
+
+def test_x_to_alpha_float32_degenerate_radius_raises() -> None:
+    with pytest.raises(ValueError):
+        x_to_alpha(np.array([0.0], dtype=np.float32), 1e-50)
+    with pytest.raises(ValueError):
+        x_to_alpha(np.array([0.0], dtype=np.float16), 1e6)
