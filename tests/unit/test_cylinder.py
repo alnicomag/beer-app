@@ -130,6 +130,15 @@ def test_x_to_alpha_float32_boundary(r: float) -> None:
     np.testing.assert_allclose(out, [math.pi / 2, -math.pi / 2], atol=1e-6)
 
 
+@pytest.mark.parametrize("r", [0.1, 0.3, 1.0, 12.3])
+def test_x_to_alpha_float16_boundary(r: float) -> None:
+    x = np.array([r, -r], dtype=np.float16)
+    out = x_to_alpha(x, r)
+    assert isinstance(out, np.ndarray)
+    assert out.dtype == np.float64
+    np.testing.assert_allclose(out, [math.pi / 2, -math.pi / 2], atol=1e-6)
+
+
 def test_x_to_alpha_float32_scalar_boundary() -> None:
     out = x_to_alpha(cast(float, np.float32(0.1)), 0.1)
     assert isinstance(out, float)

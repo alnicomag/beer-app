@@ -7,6 +7,9 @@
 
 import numpy as np
 
+# これより狭い浮動小数点dtypeの入力では、半径をそのdtypeに丸めて比較する。
+_FLOAT64_BITS = np.finfo(np.float64).bits
+
 
 def _check_radius(radius: float) -> float:
     r = float(radius)
@@ -21,12 +24,14 @@ def _effective_radius(x: float | np.ndarray, r: float) -> float:
     それ以外の入力(float64、longdouble、整数、Pythonスカラー)では ``r`` をそのまま返す。
     """
     dtype = np.asarray(x).dtype
-    if not np.issubdtype(dtype, np.floating) or np.finfo(dtype).bits >= 64:
+    if not np.issubdtype(dtype, np.floating) or np.finfo(dtype).bits >= _FLOAT64_BITS:
         return r
     with np.errstate(over="ignore", under="ignore"):
         r_eff = float(dtype.type(r))
     if not np.isfinite(r_eff) or r_eff <= 0.0:
-        raise ValueError(f"radius {r!r} is not representable as a positive finite {dtype}")
+        raise ValueError(
+            f"radius {r!r} を {dtype} に丸めた値 r_eff = {r_eff!r} が、正の有限値になりません"
+        )
     return r_eff
 
 
@@ -79,11 +84,14 @@ def x_to_alpha(x: float | np.ndarray, radius: float) -> float | np.ndarray:
             より狭い浮動小数点で、``radius`` を丸めた結果が0またはinfになる場合。
             値はclipしない。
     """
-    r = _effective_radius(x, _check_radius(radius))
+    r_eff = _effective_radius(x, _check_radius(radius))
     arr = _to_float64(x, "x")
-    if arr.size and np.max(np.abs(arr)) > r:
-        raise ValueError(f"|x| must be <= radius: max |x| = {np.max(np.abs(arr))}, radius = {r}")
-    return _finish(np.arcsin(arr / r), x)
+    if arr.size and np.max(np.abs(arr)) > r_eff:
+        raise ValueError(
+            f"|x| は実効半径 r_eff 以下でなければなりません: max |x| = {np.max(np.abs(arr))}, "
+            f"r_eff = {r_eff}"
+        )
+    return _finish(np.arcsin(arr / r_eff), x)
 
 
 def alpha_to_x(alpha: float | np.ndarray, radius: float) -> float | np.ndarray:
